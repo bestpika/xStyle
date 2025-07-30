@@ -1,15 +1,17 @@
-var frameIdMessageable, backStorage = localStorage;
+var frameIdMessageable;
 var autoUpdateTimer = null;
 
-function appId() {
-	function genRand(){
-		var r = "xxxxxxxx-xxxx-8xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (a) => {
-			var c = 16 * Math.random() | 0;
-			return ("x" == a ? c : 3 & c | 8).toString(16)
-		});
-		localStorage.setItem("appUniqueId", r);
-	};
-	return localStorage.getItem("appUniqueId") || genRand();
+async function appId() {
+	let { appUniqueId } = await browser.storage.local.get("appUniqueId");
+	if (appUniqueId) {
+		return appUniqueId;
+	}
+	appUniqueId = "xxxxxxxx-xxxx-8xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (a) => {
+		var c = 16 * Math.random() | 0;
+		return ("x" == a ? c : 3 & c | 8).toString(16)
+	});
+	await browser.storage.local.set({ appUniqueId });
+	return appUniqueId;
 }
 
 runTryCatch(() => {
@@ -94,9 +96,6 @@ browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
 				case "auto-update":
 					toggleAutoUpdate(request.value);
 					break;
-				case "modify-csp":
-					toggleCSP(request.value);
-					break;
 			}
 			break;
 		case "prefGet":
@@ -179,57 +178,11 @@ browser.tabs.onCreated.addListener((tab) => {
 	updateIcon(tab);
 });
 
-browser.webRequest.onBeforeSendHeaders.addListener(e => {
-	if (!e.requestHeaders) {
-		return;
-	}
-	for (const i in e.requestHeaders) {
-		if (e.requestHeaders[i].name.toLowerCase() === 'referer') {
-			if (e.requestHeaders[i].value.includes('userstyles.org')) {
-				return;
-			} else {
-				e.requestHeaders[i].value = 'https://userstyles.org/';
-				return {"requestHeaders": e.requestHeaders};
-			}
-		}
-	}
-	e.requestHeaders.push({
-		name: "Referer",
-		value: 'https://userstyles.org/'
-	});
-	return {"requestHeaders": e.requestHeaders};
-}, {urls: ["*://userstyles.org/*"]}, ['blocking', 'requestHeaders']);
-
 function disableAllStylesToggle(newState) {
 	if (newState === undefined || newState === null) {
 		newState = !prefs.get("disableAll");
 	}
 	prefs.set("disableAll", newState);
-}
-
-// Modify CSP
-function modifyCSPHeader(e) {
-	for (let k in e.responseHeaders) {
-		if (e.responseHeaders[k].name.toLowerCase() === 'content-security-policy') {
-			if (!e.responseHeaders[k].value.includes('style-src')) {
-				break;
-			}
-			let csp = /style-src (.*?);/.test(e.responseHeaders[k].value) ? e.responseHeaders[k].value.match(/style-src (.*?);/)[1] : e.responseHeaders[k].value.match(/style-src (.*?)$/)[1];
-			if (csp.includes("'unsafe-inline'")) {
-				break;
-			}
-			e.responseHeaders[k].value = e.responseHeaders[k].value.replace('style-src ' + csp, 'style-src ' + csp + " 'unsafe-inline'");
-			break;
-		}
-	}
-	return {"responseHeaders": e.responseHeaders};
-}
-function toggleCSP(to) {
-	if (!to && browser.webRequest.onHeadersReceived.hasListener(modifyCSPHeader)) {
-		browser.webRequest.onHeadersReceived.removeListener(modifyCSPHeader)
-	} else if (to && !browser.webRequest.onHeadersReceived.hasListener(modifyCSPHeader)) {
-		browser.webRequest.onHeadersReceived.addListener(modifyCSPHeader, {urls: ["<all_urls>"]}, ['blocking', 'responseHeaders']);
-	}
 }
 
 // enable/disable auto update
@@ -290,10 +243,10 @@ function requestUserPrefs() {
 				});
 			}
 			toggleAutoUpdate(prefs.get('auto-update'));
-			toggleCSP(prefs.get('modify-csp'));
 		} else {
 			requestUserPrefs();
 		}
 	}, 10);
 }
 requestUserPrefs();
+export {};
