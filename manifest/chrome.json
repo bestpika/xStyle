@@ -4,32 +4,25 @@
 	"version": "__version__",
 	"description": "__MSG_description__",
 	"homepage_url": "http://team.firefoxcn.net",
-	"manifest_version": 2,
+	"manifest_version": 3,
 	"icons": {
 		"128": "images/128.png"
 	},
 	"permissions": [
 		"tabs",
 		"webNavigation",
-		"webRequest",
-		"webRequestBlocking",
 		"contextMenus",
 		"storage",
 		"downloads",
-		"*://*/*",
 		"clipboardWrite",
-		"unlimitedStorage"
+		"unlimitedStorage",
+		"declarativeNetRequest"
+	],
+	"host_permissions": [
+		"*://*/*"
 	],
 	"background": {
-		"scripts": [
-			"scripts/browser-polyfill.js",
-			"scripts/common.js",
-			"scripts/messaging.js",
-			"scripts/userstyle.js",
-			"scripts/storage.js",
-			"scripts/GhostText.js",
-			"scripts/background.js"
-		]
+		"service_worker": "scripts/service-worker.js"
 	},
 	"content_scripts": [
 		{
@@ -92,7 +85,7 @@
 			]
 		}
 	],
-	"browser_action": {
+	"action": {
 		"default_icon": {
 			"128": "images/128.png"
 		},
